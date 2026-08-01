@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 import gspread
 import pandas as pd
-from google.oauth2.credentials import Credentials
+from google.oauth2.service_account import Credentials
 
 from src.extrator import COLUNAS_EXIBICAO
 
@@ -29,11 +29,18 @@ def criar_planilha_do_envio(
     dados_credenciais: dict,
     email_usuario: str,
 ) -> ResultadoCriacao:
-    credenciais = Credentials(**dados_credenciais)
+    credenciais = Credentials.from_service_account_info(
+        dict(dados_credenciais),
+        scopes=[
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ],
+    )
     cliente = gspread.authorize(credenciais)
     agora = datetime.now(ZoneInfo("America/Sao_Paulo"))
     nome = f"Pedidos_{agora:%Y-%m-%d_%H-%M}_{_nome_usuario(email_usuario)}"
     planilha = cliente.create(nome)
+    planilha.share(email_usuario, perm_type="user", role="writer")
     aba = planilha.sheet1
     aba.update_title("Itens")
 

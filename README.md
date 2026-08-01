@@ -12,15 +12,15 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 streamlit run app.py
 ```
 
-## Configurar o Google e o login
+## Configurar o Supabase e o Google
 
-1. No Google Cloud, crie um projeto e ative as APIs **Google Sheets** e **Google Drive**.
-2. No Google Auth Platform, crie um cliente OAuth do tipo **Aplicativo da Web**.
-3. Cadastre `http://localhost:8501` como URI de redirecionamento autorizada para uso local.
-4. Preencha `[google_oauth]` com o Client ID, Client Secret, a mesma URI e uma chave aleatória longa em `state_secret`.
-5. Cadastre os usuários autorizados em `[access].allowed_emails`.
+1. Crie um projeto Supabase e preencha `[supabase]` com a Project URL e a publishable key.
+2. Abra o **SQL Editor** do Supabase, cole todo o conteúdo de `schema.sql` e execute uma vez.
+3. Em **Authentication**, mantenha o provedor Email habilitado.
+4. No Google Cloud, ative as APIs **Google Sheets** e **Google Drive**.
+5. Preencha `[gcp_service_account]` com a chave JSON da conta de serviço.
 
-O login identifica o usuário e solicita autorização para criar a planilha no Drive dele. O aplicativo não recebe nem armazena senhas.
+O primeiro cadastro com `ricardo.lidio@yahoo.com.br` fica ativo automaticamente. Os demais ficam pendentes até aprovação. Todos os usuários ativos são administradores e o banco impede mais de quatro contas ativas.
 
 O arquivo real de secrets é ignorado pelo Git. Nunca publique o Client Secret no repositório.
 
@@ -28,9 +28,9 @@ O arquivo real de secrets é ignorado pelo Git. Nunca publique o Client Secret n
 
 1. Crie um repositório no GitHub e envie esta pasta.
 2. No Streamlit Community Cloud, escolha **Create app**, selecione o repositório e informe `app.py` como arquivo principal.
-3. Cadastre `https://SEU-APP.streamlit.app` como URI OAuth autorizada e atualize `redirect_uri` nos Secrets.
-4. Em **Advanced settings → Secrets**, cole o conteúdo do seu `secrets.toml`.
-5. Faça o deploy e teste com um PDF.
+3. Em **Advanced settings → Secrets**, cole o conteúdo do seu `secrets.toml`.
+4. No Supabase Authentication, cadastre `https://SEU-APP.streamlit.app` como Site URL.
+5. Faça o deploy e teste o cadastro, a aprovação e um PDF.
 
 ## Como a duplicidade é evitada
 
