@@ -18,6 +18,11 @@ def _moeda(valor: float) -> str:
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _coluna_moeda(serie: pd.Series) -> pd.Series:
+    """Formata valores monetários no padrão brasileiro para exibição."""
+    return serie.map(lambda valor: _moeda(float(valor)))
+
+
 def _carregar_itens(cliente: Client) -> pd.DataFrame:
     """Pagina a consulta para não limitar o painel aos primeiros mil registros."""
     registros: list[dict] = []
@@ -193,6 +198,7 @@ def exibir_dashboard(cliente: Client) -> None:
         .copy()
     )
     resumo_produtos["emissao"] = resumo_produtos["emissao"].dt.strftime("%d/%m/%Y")
+    resumo_produtos["valor_unitario"] = _coluna_moeda(resumo_produtos["valor_unitario"])
     st.dataframe(
         resumo_produtos,
         use_container_width=True,
@@ -201,7 +207,7 @@ def exibir_dashboard(cliente: Client) -> None:
             "codigo_produto": "Código",
             "produto": "Produto",
             "emissao": "Data",
-            "valor_unitario": st.column_config.NumberColumn("Valor unitário", format="R$ %.4f"),
+            "valor_unitario": "Valor unitário",
         },
     )
 
@@ -209,14 +215,17 @@ def exibir_dashboard(cliente: Client) -> None:
     st.markdown("#### Todos os pedidos filtrados")
     tabela = filtrada.drop(columns=["shipment_id", "created_at"], errors="ignore").copy()
     tabela["emissao"] = tabela["emissao"].dt.strftime("%d/%m/%Y")
+    tabela_exibicao = tabela.copy()
+    tabela_exibicao["valor_item"] = _coluna_moeda(tabela_exibicao["valor_item"])
+    tabela_exibicao["valor_unitario"] = _coluna_moeda(tabela_exibicao["valor_unitario"])
     st.dataframe(
-        tabela,
+        tabela_exibicao,
         use_container_width=True,
         hide_index=True,
         height=520,
         column_config={
-            "valor_item": st.column_config.NumberColumn("Valor do item", format="R$ %.2f"),
-            "valor_unitario": st.column_config.NumberColumn("Valor unitário", format="R$ %.4f"),
+            "valor_item": "Valor do item",
+            "valor_unitario": "Valor unitário",
             "quantidade": st.column_config.NumberColumn("Quantidade", format="%.2f"),
         },
     )
