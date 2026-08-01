@@ -46,8 +46,14 @@ create table if not exists public.shipment_items (
   embalagem numeric,
   quantidade numeric,
   valor_item numeric,
+  valor_unitario numeric,
   created_at timestamptz not null default now()
 );
+
+alter table public.shipment_items add column if not exists valor_unitario numeric;
+update public.shipment_items
+set valor_unitario = round(valor_item / nullif(quantidade, 0), 4)
+where valor_unitario is null;
 
 alter table public.profiles enable row level security;
 alter table public.shipments enable row level security;
@@ -120,17 +126,18 @@ begin
   insert into public.shipment_items(
     id_registro,shipment_id,arquivo,pagina,fornecedor,comprador,empresa,local,
     pedido,pedido_fornecedor,emissao,recebimento,codigo_produto,produto,status,
-    unidade,embalagem,quantidade,valor_item
+    unidade,embalagem,quantidade,valor_item,valor_unitario
   )
   select
     x.id_registro,v_shipment_id,x.arquivo,x.pagina,x.fornecedor,x.comprador,
     x.empresa,x.local,x.pedido,x.pedido_fornecedor,x.emissao,x.recebimento,
-    x.codigo_produto,x.produto,x.status,x.unidade,x.embalagem,x.quantidade,x.valor_item
+    x.codigo_produto,x.produto,x.status,x.unidade,x.embalagem,x.quantidade,
+    x.valor_item,x.valor_unitario
   from jsonb_to_recordset(p_items) as x(
     id_registro text,arquivo text,pagina integer,fornecedor text,comprador text,
     empresa text,local text,pedido text,pedido_fornecedor text,emissao date,
     recebimento date,codigo_produto text,produto text,status text,unidade text,
-    embalagem numeric,quantidade numeric,valor_item numeric
+    embalagem numeric,quantidade numeric,valor_item numeric,valor_unitario numeric
   )
   on conflict (id_registro) do nothing;
 

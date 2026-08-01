@@ -13,11 +13,13 @@ COLUNAS_EXIBICAO = [
     "id_registro", "arquivo", "pagina", "fornecedor", "comprador", "empresa",
     "local", "pedido", "pedido_fornecedor", "emissao", "recebimento",
     "codigo_produto", "produto", "status", "unidade", "embalagem",
-    "quantidade", "valor_item",
+    "quantidade", "valor_item", "valor_unitario",
 ]
 COLUNAS_COMPARACAO = [
     coluna for coluna in COLUNAS_EXIBICAO
-    if coluna not in {"id_registro", "arquivo"}
+    # O valor unitário é derivado de quantidade e valor_item. Mantê-lo fora da
+    # chave preserva a compatibilidade dos IDs já gravados no Supabase.
+    if coluna not in {"id_registro", "arquivo", "valor_unitario"}
 ]
 
 
@@ -119,6 +121,9 @@ def extrair_pdf(arquivo: BinaryIO, nome_arquivo: str) -> pd.DataFrame:
     df = pd.DataFrame(registros)
     df["emissao"] = pd.to_datetime(df["emissao"], format="%d/%m/%Y", errors="coerce").dt.strftime("%Y-%m-%d")
     df["recebimento"] = pd.to_datetime(df["recebimento"], format="%d/%m/%Y", errors="coerce").dt.strftime("%Y-%m-%d")
+    df["valor_unitario"] = (
+        df["valor_item"].div(df["quantidade"].where(df["quantidade"] != 0)).round(4)
+    )
     df.insert(0, "id_registro", df.apply(lambda linha: _id_registro(linha.to_dict()), axis=1))
     return df[COLUNAS_EXIBICAO]
 

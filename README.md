@@ -2,6 +2,8 @@
 
 Aplicativo Streamlit para ler um ou vários relatórios PDF **Pedidos de Suprimentos em Aberto**, consolidar os itens, remover duplicidades e armazenar cada envio no Supabase.
 
+Como o relatório não informa o preço unitário, o aplicativo calcula a coluna `valor_unitario` dividindo `valor_item` por `quantidade`, com quatro casas decimais.
+
 ## Executar localmente
 
 ```bash
