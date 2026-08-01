@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import time
 
 import streamlit as st
 from supabase import Client, create_client
+
+from src.session_manager import clear_session, get_saved_refresh_token, save_session
 
 
 @dataclass(frozen=True)
@@ -25,12 +28,18 @@ def cliente_supabase() -> Client:
         try:
             resposta = cliente.auth.set_session(sessao["access_token"], sessao["refresh_token"])
             if resposta.session:
-                st.session_state["auth_session"] = {
-                    "access_token": resposta.session.access_token,
-                    "refresh_token": resposta.session.refresh_token,
-                }
+                save_session(resposta.session.access_token, resposta.session.refresh_token)
         except Exception:
-            st.session_state.pop("auth_session", None)
+            clear_session()
+    else:
+        refresh_token = get_saved_refresh_token()
+        if refresh_token:
+            try:
+                resposta = cliente.auth.refresh_session(refresh_token)
+                if resposta.session:
+                    save_session(resposta.session.access_token, resposta.session.refresh_token)
+            except Exception:
+                clear_session()
     return cliente
 
 
@@ -63,10 +72,9 @@ def entrar(cliente: Client, email: str, senha: str) -> None:
     if not perfil:
         cliente.auth.sign_out()
         raise PermissionError("Sua conta ainda não foi aprovada ou está desativada.")
-    st.session_state["auth_session"] = {
-        "access_token": resposta.session.access_token,
-        "refresh_token": resposta.session.refresh_token,
-    }
+    save_session(resposta.session.access_token, resposta.session.refresh_token)
+    # Dá tempo para os componentes gravarem a sessão antes do rerun do Streamlit.
+    time.sleep(0.8)
 
 
 def cadastrar(cliente: Client, nome: str, email: str, senha: str) -> None:
@@ -87,7 +95,7 @@ def sair(cliente: Client) -> None:
     try:
         cliente.auth.sign_out()
     finally:
-        st.session_state.pop("auth_session", None)
+        clear_session()
 
 
 def tela_login(cliente: Client) -> None:

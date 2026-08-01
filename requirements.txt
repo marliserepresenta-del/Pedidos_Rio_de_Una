@@ -2,3 +2,6 @@ streamlit==1.49.1
 pandas==2.3.2
 pdfplumber==0.11.7
 supabase==2.18.1
+cryptography>=44,<47
+streamlit-cookies-controller==0.0.4
+streamlit-local-storage==0.0.25

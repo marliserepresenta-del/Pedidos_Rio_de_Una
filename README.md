@@ -20,6 +20,8 @@ streamlit run app.py
 
 O primeiro cadastro com `ricardo.lidio@yahoo.com.br` fica ativo automaticamente. Os demais ficam pendentes até aprovação. Todos os usuários ativos são administradores e o banco impede mais de quatro contas ativas.
 
+O login permanece ativo por até 30 dias, inclusive depois de atualizar ou reabrir o navegador. Somente o token de renovação criptografado é guardado; a senha nunca é armazenada. O botão **Sair** apaga a sessão persistente.
+
 O arquivo real de secrets é ignorado pelo Git. Nunca publique o Client Secret no repositório.
 
 ## Publicar com GitHub e Streamlit Community Cloud
