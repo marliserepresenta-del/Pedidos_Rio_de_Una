@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime
+import json
+from zoneinfo import ZoneInfo
+
 import pandas as pd
 import streamlit as st
 
 from src.autenticacao import cliente_supabase, sair, tela_login, usuario_atual
 from src.extrator import COLUNAS_EXIBICAO, extrair_varios_pdfs
-from src.google_sheets import criar_planilha_do_envio
 
 
 st.set_page_config(page_title="Rio de Una — Pedidos", page_icon="📄", layout="wide")
@@ -48,29 +51,54 @@ with aba_envio:
             st.dataframe(tabela[COLUNAS_EXIBICAO], use_container_width=True, hide_index=True)
             csv = tabela[COLUNAS_EXIBICAO].to_csv(index=False).encode("utf-8-sig")
             st.download_button("Baixar CSV", csv, "pedidos_extraidos.csv", "text/csv")
-            if st.button("Finalizar e criar planilha", type="primary"):
-                with st.spinner("Criando a planilha..."):
+            if st.button("Finalizar e salvar no Supabase", type="primary"):
+                with st.spinner("Validando duplicidades e salvando o envio..."):
                     try:
-                        resultado = criar_planilha_do_envio(tabela, st.secrets["gcp_service_account"], usuario.email)
-                        supabase.table("shipments").insert({
-                            "user_id": usuario.id,
-                            "user_email": usuario.email,
-                            "file_name": resultado.nome,
-                            "sheet_url": resultado.url,
-                            "item_count": resultado.itens,
+                        agora = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                        nome_usuario = usuario.email.split("@", 1)[0].replace(".", "_")
+                        nome_lote = f"Pedidos_{agora:%Y-%m-%d_%H-%M-%S}_{nome_usuario}"
+                        itens = json.loads(tabela[COLUNAS_EXIBICAO].to_json(orient="records"))
+                        resposta = supabase.rpc("finalize_shipment", {
+                            "p_batch_name": nome_lote,
+                            "p_file_names": [arquivo.name for arquivo in arquivos],
+                            "p_items": itens,
                         }).execute()
+                        resultado = resposta.data[0] if resposta.data else {}
                     except Exception as erro:
                         st.error(f"Não foi possível finalizar: {erro}")
                     else:
-                        st.success(f"Planilha criada com {resultado.itens} itens.")
-                        st.link_button("Abrir planilha", resultado.url)
+                        novos = int(resultado.get("inserted_count", 0))
+                        duplicados = int(resultado.get("duplicate_count", 0))
+                        st.success(f"Envio salvo: {novos} item(ns) novo(s) e {duplicados} repetido(s) ignorado(s).")
     else:
         st.info("Envie os relatórios para começar. Os PDFs não ficam armazenados.")
 
 with aba_historico:
-    historico = supabase.table("shipments").select("created_at,user_email,file_name,sheet_url,item_count").order("created_at", desc=True).execute().data
+    historico = supabase.table("shipments").select(
+        "id,created_at,user_email,batch_name,file_names,item_count,duplicate_count"
+    ).order("created_at", desc=True).execute().data
     if historico:
-        st.dataframe(pd.DataFrame(historico), use_container_width=True, hide_index=True)
+        tabela_historico = pd.DataFrame(historico)
+        st.dataframe(tabela_historico.drop(columns=["id"]), use_container_width=True, hide_index=True)
+        opcoes = {f"{item['batch_name']} · {item['item_count']} itens": item["id"] for item in historico}
+        envio_escolhido = st.selectbox("Abrir um envio", options=list(opcoes), index=None)
+        if envio_escolhido:
+            itens_envio = supabase.table("shipment_items").select("*").eq(
+                "shipment_id", opcoes[envio_escolhido]
+            ).order("pagina").execute().data
+            if itens_envio:
+                df_envio = pd.DataFrame(itens_envio)
+                colunas_internas = [c for c in ["shipment_id", "created_at"] if c in df_envio.columns]
+                df_envio = df_envio.drop(columns=colunas_internas)
+                st.dataframe(df_envio, use_container_width=True, hide_index=True)
+                st.download_button(
+                    "Baixar este envio em CSV",
+                    df_envio.to_csv(index=False).encode("utf-8-sig"),
+                    f"{envio_escolhido.split(' · ')[0]}.csv",
+                    "text/csv",
+                )
+            else:
+                st.info("Este envio não adicionou itens novos; todos já existiam no banco.")
     else:
         st.info("Nenhum envio finalizado.")
 

@@ -1,6 +1,6 @@
 # Pedidos TOTVS para Google Planilhas
 
-Aplicativo Streamlit para ler um ou vários relatórios PDF **Pedidos de Suprimentos em Aberto**, consolidar os itens, remover duplicidades e criar um novo arquivo Google Planilhas a cada envio finalizado.
+Aplicativo Streamlit para ler um ou vários relatórios PDF **Pedidos de Suprimentos em Aberto**, consolidar os itens, remover duplicidades e armazenar cada envio no Supabase.
 
 ## Executar localmente
 
@@ -12,13 +12,11 @@ cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 streamlit run app.py
 ```
 
-## Configurar o Supabase e o Google
+## Configurar o Supabase
 
 1. Crie um projeto Supabase e preencha `[supabase]` com a Project URL e a publishable key.
 2. Abra o **SQL Editor** do Supabase, cole todo o conteúdo de `schema.sql` e execute uma vez.
 3. Em **Authentication**, mantenha o provedor Email habilitado.
-4. No Google Cloud, ative as APIs **Google Sheets** e **Google Drive**.
-5. Preencha `[gcp_service_account]` com a chave JSON da conta de serviço.
 
 O primeiro cadastro com `ricardo.lidio@yahoo.com.br` fica ativo automaticamente. Os demais ficam pendentes até aprovação. Todos os usuários ativos são administradores e o banco impede mais de quatro contas ativas.
 
@@ -34,4 +32,4 @@ O arquivo real de secrets é ignorado pelo Git. Nunca publique o Client Secret n
 
 ## Como a duplicidade é evitada
 
-Cada item recebe `id_registro`, uma chave SHA-256 calculada a partir de empresa, pedido, pedido do fornecedor, código do produto, quantidade e valor. Arquivos repetidos dentro do mesmo envio são consolidados antes da criação da planilha.
+Cada item recebe `id_registro`, uma chave SHA-256 calculada com todas as colunas, exceto `id_registro` e `arquivo`. O banco usa essa chave como identificador único global, impedindo reinserção em envios posteriores. Cada lote registra quantos itens foram incluídos e quantos foram ignorados como duplicados.
