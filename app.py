@@ -18,7 +18,7 @@ from src.autenticacao import (
 from src.extrator import COLUNAS_EXIBICAO, extrair_varios_pdfs
 
 
-ICONE_APP = Path(__file__).parent / "assets" / "comida-saudavel.ico"
+ICONE_APP = Path(__file__).parent / "assets" / "comida-saudavel.png"
 
 st.set_page_config(
     page_title="Rio de Una — Pedidos",
