@@ -15,10 +15,12 @@ from src.autenticacao import (
     tela_redefinir_senha,
     usuario_atual,
 )
+from src.dashboard import exibir_dashboard
 from src.extrator import COLUNAS_EXIBICAO, extrair_varios_pdfs
 
 
-ICONE_APP = Path(__file__).parent / "assets" / "comida-saudavel.png"
+ICONE_APP = Path(__file__).parent / "assets" / "comida-saudavel.ico"
+LOGO_APP = Path(__file__).parent / "assets" / "comida-saudavel.png"
 
 st.set_page_config(
     page_title="Rio de Una — Pedidos",
@@ -41,14 +43,24 @@ if not usuario:
     tela_login(supabase)
     st.stop()
 
-cabecalho, botao_sair = st.columns([5, 1])
+st.markdown("""
+<style>
+    .block-container {max-width: 100%; padding: 1.5rem 2.4rem 3rem;}
+    div[data-testid="stMetric"] {padding: 1rem; border: 1px solid #e5e7eb; border-radius: 0.8rem;}
+</style>
+""", unsafe_allow_html=True)
+
+logo, cabecalho, botao_sair = st.columns([0.55, 5, 0.7], vertical_alignment="center")
+logo.image(str(LOGO_APP), width=72)
 cabecalho.title("Rio de Una — Pedidos")
 cabecalho.caption(f"Administrador conectado: {usuario.nome} · {usuario.email}")
 if botao_sair.button("Sair"):
     sair(supabase)
     st.rerun()
 
-aba_envio, aba_historico, aba_usuarios = st.tabs(["Enviar pedidos", "Histórico", "Usuários"])
+aba_envio, aba_dashboard, aba_historico, aba_usuarios = st.tabs(
+    ["Enviar pedidos", "Visão geral", "Histórico", "Usuários"]
+)
 
 with aba_envio:
     arquivos = st.file_uploader("Selecione um ou vários PDFs", type=["pdf"], accept_multiple_files=True)
@@ -89,6 +101,9 @@ with aba_envio:
                         st.success(f"Envio salvo: {novos} item(ns) novo(s) e {duplicados} repetido(s) ignorado(s).")
     else:
         st.info("Envie os relatórios para começar. Os PDFs não ficam armazenados.")
+
+with aba_dashboard:
+    exibir_dashboard(supabase)
 
 with aba_historico:
     historico = supabase.table("shipments").select(

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 import time
 
 import streamlit as st
 from supabase import Client, create_client
 
 from src.session_manager import clear_session, get_saved_refresh_token, save_session
+
+
+LOGO_APP = Path(__file__).resolve().parents[1] / "assets" / "comida-saudavel.png"
 
 
 @dataclass(frozen=True)
@@ -118,6 +122,7 @@ def tela_redefinir_senha(cliente: Client) -> None:
             st.error("O link de recuperação é inválido ou expirou.")
             st.stop()
 
+    st.image(str(LOGO_APP), width=84)
     st.title("Rio de Una — Nova senha")
     with st.form("nova_senha_recuperacao"):
         senha = st.text_input("Nova senha", type="password")
@@ -147,6 +152,7 @@ def sair(cliente: Client) -> None:
 
 
 def tela_login(cliente: Client) -> None:
+    st.image(str(LOGO_APP), width=96)
     st.title("Rio de Una — Pedidos")
     st.caption("Acesso seguro para usuários aprovados.")
     entrar_tab, cadastro_tab, recuperar_tab = st.tabs(

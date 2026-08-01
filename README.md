@@ -4,6 +4,8 @@ Aplicativo Streamlit para ler um ou vários relatórios PDF **Pedidos de Suprime
 
 Como o relatório não informa o preço unitário, o aplicativo calcula a coluna `valor_unitario` dividindo `valor_item` por `quantidade`, com quatro casas decimais.
 
+A aba **Visão geral** reúne indicadores de valor e quantidade, análises por produto, loja, ano e mês/ano, filtros de período e demais campos do pedido, tabela detalhada e download do resultado filtrado em CSV. O período começa automaticamente na menor data de emissão disponível e termina na maior.
+
 ## Executar localmente
 
 ```bash
