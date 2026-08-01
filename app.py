@@ -1,17 +1,31 @@
 from __future__ import annotations
 
-from io import BytesIO
-
 import pandas as pd
 import streamlit as st
 
+from src.autenticacao import exibir_login, usuario_autorizado
 from src.extrator import COLUNAS_EXIBICAO, extrair_varios_pdfs
-from src.google_sheets import configurar_planilha, enviar_sem_duplicar
+from src.google_sheets import criar_planilha_do_envio
 
 
 st.set_page_config(page_title="Pedidos TOTVS", page_icon="📄", layout="wide")
+if not usuario_autorizado():
+    exibir_login()
+    st.stop()
+
+usuario = st.session_state["usuario_google"]
+topo, sair = st.columns([5, 1])
+with topo:
+    st.caption(f"Conectado como {usuario['email']}")
+with sair:
+    if st.button("Sair"):
+        for chave in ["google_credentials", "usuario_google"]:
+            st.session_state.pop(chave, None)
+        st.query_params.clear()
+        st.rerun()
+
 st.title("Pedidos TOTVS → Google Planilhas")
-st.caption("Extraia um ou vários relatórios PDF, revise os itens e grave apenas registros novos.")
+st.caption("Envie um ou vários relatórios, revise os itens e crie um arquivo separado no Google Drive.")
 
 arquivos = st.file_uploader(
     "Selecione um ou vários PDFs",
@@ -41,26 +55,20 @@ if arquivos:
     st.download_button("Baixar CSV", csv, "pedidos_extraidos.csv", "text/csv")
 
     st.divider()
-    st.subheader("Enviar ao Google Planilhas")
-    st.caption("A conexão usa a conta de serviço configurada nos Secrets do Streamlit.")
-
-    try:
-        config = configurar_planilha(st.secrets)
-    except ValueError as erro:
-        st.info(str(erro))
-    else:
-        st.write(f"Destino: `{config.nome_planilha}` → aba `{config.nome_aba}`")
-        if st.button("Adicionar somente itens novos", type="primary"):
-            with st.spinner("Comparando e enviando registros..."):
-                try:
-                    resultado = enviar_sem_duplicar(tabela, config)
-                except Exception as erro:
-                    st.error(f"Não foi possível atualizar a planilha: {erro}")
-                else:
-                    st.success(
-                        f"{resultado.inseridos} item(ns) inserido(s); "
-                        f"{resultado.duplicados} duplicado(s) ignorado(s)."
-                    )
+    st.subheader("Finalizar envio")
+    st.caption("Será criado um novo arquivo no seu Google Drive. Cada envio gera um arquivo independente.")
+    if st.button("Finalizar e criar planilha", type="primary"):
+        with st.spinner("Criando a planilha no Google Drive..."):
+            try:
+                resultado = criar_planilha_do_envio(
+                    tabela,
+                    st.session_state["google_credentials"],
+                    usuario["email"],
+                )
+            except Exception as erro:
+                st.error(f"Não foi possível criar a planilha: {erro}")
+            else:
+                st.success(f"Planilha criada com {resultado.itens} item(ns).")
+                st.link_button("Abrir planilha no Google", resultado.url)
 else:
     st.info("Envie os relatórios para começar. Os PDFs não ficam armazenados pelo aplicativo.")
-

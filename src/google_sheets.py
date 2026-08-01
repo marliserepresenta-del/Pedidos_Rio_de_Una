@@ -1,70 +1,46 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+import re
+from zoneinfo import ZoneInfo
 
 import gspread
 import pandas as pd
-from google.oauth2.service_account import Credentials
+from google.oauth2.credentials import Credentials
 
 from src.extrator import COLUNAS_EXIBICAO
 
 
 @dataclass(frozen=True)
-class ConfigPlanilha:
-    nome_planilha: str
-    nome_aba: str
-    credenciais: dict
+class ResultadoCriacao:
+    nome: str
+    url: str
+    itens: int
 
 
-@dataclass(frozen=True)
-class ResultadoEnvio:
-    inseridos: int
-    duplicados: int
+def _nome_usuario(email: str) -> str:
+    nome = email.split("@", 1)[0]
+    return re.sub(r"[^A-Za-z0-9_-]+", "_", nome).strip("_") or "usuario"
 
 
-def configurar_planilha(secrets) -> ConfigPlanilha:
-    if "google_sheets" not in secrets or "gcp_service_account" not in secrets:
-        raise ValueError(
-            "Configure [google_sheets] e [gcp_service_account] no arquivo .streamlit/secrets.toml."
-        )
-    destino = dict(secrets["google_sheets"])
-    return ConfigPlanilha(
-        nome_planilha=destino["spreadsheet_name"],
-        nome_aba=destino.get("worksheet_name", "Itens"),
-        credenciais=dict(secrets["gcp_service_account"]),
-    )
-
-
-def _abrir_aba(config: ConfigPlanilha):
-    escopos = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive",
-    ]
-    credenciais = Credentials.from_service_account_info(config.credenciais, scopes=escopos)
+def criar_planilha_do_envio(
+    df: pd.DataFrame,
+    dados_credenciais: dict,
+    email_usuario: str,
+) -> ResultadoCriacao:
+    credenciais = Credentials(**dados_credenciais)
     cliente = gspread.authorize(credenciais)
-    planilha = cliente.open(config.nome_planilha)
-    try:
-        return planilha.worksheet(config.nome_aba)
-    except gspread.WorksheetNotFound:
-        return planilha.add_worksheet(title=config.nome_aba, rows=1000, cols=len(COLUNAS_EXIBICAO))
+    agora = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    nome = f"Pedidos_{agora:%Y-%m-%d_%H-%M}_{_nome_usuario(email_usuario)}"
+    planilha = cliente.create(nome)
+    aba = planilha.sheet1
+    aba.update_title("Itens")
 
-
-def enviar_sem_duplicar(df: pd.DataFrame, config: ConfigPlanilha) -> ResultadoEnvio:
-    aba = _abrir_aba(config)
-    valores = aba.get_all_values()
-    if not valores:
-        aba.append_row(COLUNAS_EXIBICAO, value_input_option="RAW")
-        ids_existentes: set[str] = set()
-    else:
-        cabecalho = valores[0]
-        if "id_registro" not in cabecalho:
-            raise ValueError("A aba já existe, mas não possui a coluna id_registro.")
-        indice = cabecalho.index("id_registro")
-        ids_existentes = {linha[indice] for linha in valores[1:] if len(linha) > indice}
-
-    novos = df.loc[~df["id_registro"].astype(str).isin(ids_existentes), COLUNAS_EXIBICAO].copy()
-    novos = novos.fillna("")
-    if not novos.empty:
-        aba.append_rows(novos.astype(object).values.tolist(), value_input_option="USER_ENTERED")
-    return ResultadoEnvio(inseridos=len(novos), duplicados=len(df) - len(novos))
-
+    tabela = df[COLUNAS_EXIBICAO].drop_duplicates(subset=["id_registro"]).fillna("")
+    valores = [COLUNAS_EXIBICAO] + tabela.astype(object).values.tolist()
+    aba.update(range_name="A1", values=valores, value_input_option="USER_ENTERED")
+    aba.freeze(rows=1)
+    aba.set_basic_filter()
+    aba.resize(rows=max(len(valores) + 20, 100), cols=len(COLUNAS_EXIBICAO))
+    return ResultadoCriacao(nome=nome, url=planilha.url, itens=len(tabela))
