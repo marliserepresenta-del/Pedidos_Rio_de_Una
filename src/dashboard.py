@@ -201,7 +201,7 @@ def exibir_dashboard(cliente: Client) -> None:
     resumo_produtos["valor_unitario"] = _coluna_moeda(resumo_produtos["valor_unitario"])
     st.dataframe(
         resumo_produtos,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "codigo_produto": "Código",
@@ -220,7 +220,7 @@ def exibir_dashboard(cliente: Client) -> None:
     tabela_exibicao["valor_unitario"] = _coluna_moeda(tabela_exibicao["valor_unitario"])
     st.dataframe(
         tabela_exibicao,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=520,
         column_config={
@@ -244,7 +244,7 @@ def exibir_dashboard(cliente: Client) -> None:
         tabela.to_csv(index=False).encode("utf-8-sig"),
         "pedidos_filtrados.csv",
         "text/csv",
-        use_container_width=True,
+        width="stretch",
     )
     baixar_pdf.download_button(
         "Baixar relatório em PDF",
@@ -252,5 +252,5 @@ def exibir_dashboard(cliente: Client) -> None:
         f"relatorio_pedidos_{inicio:%Y-%m-%d}_a_{fim:%Y-%m-%d}.pdf",
         "application/pdf",
         type="primary",
-        use_container_width=True,
+        width="stretch",
     )

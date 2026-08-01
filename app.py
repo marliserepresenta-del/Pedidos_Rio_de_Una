@@ -77,7 +77,7 @@ with aba_envio:
             c1.metric("Pedidos", tabela["pedido"].nunique())
             c2.metric("Produtos", tabela["codigo_produto"].nunique())
             c3.metric("Valor total", f"R$ {tabela['valor_item'].sum():,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            st.dataframe(tabela[COLUNAS_EXIBICAO], use_container_width=True, hide_index=True)
+            st.dataframe(tabela[COLUNAS_EXIBICAO], width="stretch", hide_index=True)
             csv = tabela[COLUNAS_EXIBICAO].to_csv(index=False).encode("utf-8-sig")
             st.download_button("Baixar CSV", csv, "pedidos_extraidos.csv", "text/csv")
             if st.button("Finalizar e salvar no Supabase", type="primary"):
@@ -111,7 +111,7 @@ with aba_historico:
     ).order("created_at", desc=True).execute().data
     if historico:
         tabela_historico = pd.DataFrame(historico)
-        st.dataframe(tabela_historico.drop(columns=["id"]), use_container_width=True, hide_index=True)
+        st.dataframe(tabela_historico.drop(columns=["id"]), width="stretch", hide_index=True)
         opcoes = {f"{item['batch_name']} · {item['item_count']} itens": item["id"] for item in historico}
         envio_escolhido = st.selectbox("Abrir um envio", options=list(opcoes), index=None)
         if envio_escolhido:
@@ -122,7 +122,7 @@ with aba_historico:
                 df_envio = pd.DataFrame(itens_envio)
                 colunas_internas = [c for c in ["shipment_id", "created_at"] if c in df_envio.columns]
                 df_envio = df_envio.drop(columns=colunas_internas)
-                st.dataframe(df_envio, use_container_width=True, hide_index=True)
+                st.dataframe(df_envio, width="stretch", hide_index=True)
                 st.download_button(
                     "Baixar este envio em CSV",
                     df_envio.to_csv(index=False).encode("utf-8-sig"),
