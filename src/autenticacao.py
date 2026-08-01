@@ -91,6 +91,54 @@ def cadastrar(cliente: Client, nome: str, email: str, senha: str) -> None:
         raise ValueError("Não foi possível criar a solicitação.")
 
 
+def solicitar_redefinicao(cliente: Client, email: str) -> None:
+    email = email.strip().lower()
+    if not email or "@" not in email:
+        raise ValueError("Informe um e-mail válido.")
+    cliente.auth.reset_password_email(email)
+
+
+def tela_redefinir_senha(cliente: Client) -> None:
+    """Confirma o link de recuperação e permite cadastrar uma nova senha."""
+    token_hash = st.query_params.get("token_hash")
+    if not st.session_state.get("recovery_verified"):
+        if not token_hash:
+            st.error("O link de recuperação é inválido ou expirou.")
+            st.stop()
+        try:
+            resposta = cliente.auth.verify_otp({
+                "token_hash": token_hash,
+                "type": "recovery",
+            })
+            if not resposta.session:
+                raise ValueError("Sessão de recuperação não criada.")
+            save_session(resposta.session.access_token, resposta.session.refresh_token)
+            st.session_state["recovery_verified"] = True
+        except Exception:
+            st.error("O link de recuperação é inválido ou expirou.")
+            st.stop()
+
+    st.title("Rio de Una — Nova senha")
+    with st.form("nova_senha_recuperacao"):
+        senha = st.text_input("Nova senha", type="password")
+        confirmar = st.text_input("Confirmar nova senha", type="password")
+        salvar = st.form_submit_button("Salvar nova senha", type="primary")
+    if salvar:
+        if len(senha) < 8:
+            st.error("A senha deve ter pelo menos 8 caracteres.")
+        elif senha != confirmar:
+            st.error("As senhas não coincidem.")
+        else:
+            try:
+                cliente.auth.update_user({"password": senha})
+            except Exception as erro:
+                st.error(f"Não foi possível alterar a senha: {erro}")
+            else:
+                st.session_state.pop("recovery_verified", None)
+                st.query_params.clear()
+                st.success("Senha alterada. Você já pode continuar no aplicativo.")
+
+
 def sair(cliente: Client) -> None:
     try:
         cliente.auth.sign_out()
@@ -101,7 +149,9 @@ def sair(cliente: Client) -> None:
 def tela_login(cliente: Client) -> None:
     st.title("Rio de Una — Pedidos")
     st.caption("Acesso seguro para usuários aprovados.")
-    entrar_tab, cadastro_tab = st.tabs(["Entrar", "Solicitar acesso"])
+    entrar_tab, cadastro_tab, recuperar_tab = st.tabs(
+        ["Entrar", "Solicitar acesso", "Esqueci minha senha"]
+    )
     with entrar_tab:
         with st.form("login"):
             email = st.text_input("E-mail")
@@ -134,3 +184,16 @@ def tela_login(cliente: Client) -> None:
                     st.error(str(erro))
                 else:
                     st.success("Solicitação criada. Confirme seu e-mail e aguarde a aprovação.")
+    with recuperar_tab:
+        st.caption("Enviaremos um link seguro para cadastrar uma nova senha.")
+        with st.form("recuperar_senha"):
+            email_recuperacao = st.text_input("E-mail", key="email_recuperacao")
+            recuperar = st.form_submit_button("Enviar link de redefinição")
+        if recuperar:
+            try:
+                solicitar_redefinicao(cliente, email_recuperacao)
+            except Exception as erro:
+                st.error(f"Não foi possível enviar o link: {erro}")
+            else:
+                # A mesma mensagem evita revelar se um endereço está cadastrado.
+                st.success("Se o e-mail estiver cadastrado, o link chegará em instantes.")

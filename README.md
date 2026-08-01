@@ -20,6 +20,12 @@ streamlit run app.py
 2. Abra o **SQL Editor** do Supabase, cole todo o conteúdo de `schema.sql` e execute uma vez.
 3. Em **Authentication**, mantenha o provedor Email habilitado.
 
+Para o botão **Esqueci minha senha**, configure o template **Reset password** do Supabase com este link:
+
+```text
+{{ .SiteURL }}?token_hash={{ .TokenHash }}&type=recovery
+```
+
 O primeiro cadastro com `ricardo.lidio@yahoo.com.br` fica ativo automaticamente. Os demais ficam pendentes até aprovação. Todos os usuários ativos são administradores e o banco impede mais de quatro contas ativas.
 
 O login permanece ativo por até 30 dias, inclusive depois de atualizar ou reabrir o navegador. Somente o token de renovação criptografado é guardado; a senha nunca é armazenada. O botão **Sair** apaga a sessão persistente.

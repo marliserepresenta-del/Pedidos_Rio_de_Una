@@ -7,7 +7,13 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import streamlit as st
 
-from src.autenticacao import cliente_supabase, sair, tela_login, usuario_atual
+from src.autenticacao import (
+    cliente_supabase,
+    sair,
+    tela_login,
+    tela_redefinir_senha,
+    usuario_atual,
+)
 from src.extrator import COLUNAS_EXIBICAO, extrair_varios_pdfs
 
 
@@ -17,6 +23,10 @@ try:
     supabase = cliente_supabase()
 except Exception as erro:
     st.error(f"Configuração incompleta: {erro}")
+    st.stop()
+
+if st.query_params.get("type") == "recovery":
+    tela_redefinir_senha(supabase)
     st.stop()
 
 usuario = usuario_atual(supabase)
