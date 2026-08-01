@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -17,7 +18,13 @@ from src.autenticacao import (
 from src.extrator import COLUNAS_EXIBICAO, extrair_varios_pdfs
 
 
-st.set_page_config(page_title="Rio de Una — Pedidos", page_icon="📄", layout="wide")
+ICONE_APP = Path(__file__).parent / "assets" / "comida-saudavel.ico"
+
+st.set_page_config(
+    page_title="Rio de Una — Pedidos",
+    page_icon=str(ICONE_APP),
+    layout="wide",
+)
 
 try:
     supabase = cliente_supabase()
