@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from typing import BinaryIO, Iterable
 
@@ -13,6 +14,10 @@ COLUNAS_EXIBICAO = [
     "local", "pedido", "pedido_fornecedor", "emissao", "recebimento",
     "codigo_produto", "produto", "status", "unidade", "embalagem",
     "quantidade", "valor_item",
+]
+COLUNAS_COMPARACAO = [
+    coluna for coluna in COLUNAS_EXIBICAO
+    if coluna not in {"id_registro", "arquivo"}
 ]
 
 
@@ -52,11 +57,15 @@ PREFIXOS_IGNORADOS = (
 
 
 def _id_registro(registro: dict) -> str:
-    campos = (
-        registro.get("empresa"), registro.get("pedido"), registro.get("pedido_fornecedor"),
-        registro.get("codigo_produto"), registro.get("quantidade"), registro.get("valor_item"),
-    )
-    base = "|".join("" if valor is None else str(valor) for valor in campos)
+    valores = []
+    for coluna in COLUNAS_COMPARACAO:
+        valor = registro.get(coluna)
+        if valor is None or pd.isna(valor):
+            valor = None
+        elif hasattr(valor, "item"):
+            valor = valor.item()
+        valores.append(valor)
+    base = json.dumps(valores, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(base.encode("utf-8")).hexdigest()[:20]
 
 
@@ -129,7 +138,7 @@ def extrair_varios_pdfs(arquivos: Iterable[BinaryIO]) -> tuple[pd.DataFrame, lis
         raise ValueError("Nenhum item pôde ser extraído dos arquivos enviados.")
     combinado = pd.concat(tabelas, ignore_index=True)
     antes = len(combinado)
-    combinado = combinado.drop_duplicates(subset=["id_registro"], keep="first")
+    combinado = combinado.drop_duplicates(subset=COLUNAS_COMPARACAO, keep="first")
     removidos = antes - len(combinado)
     if removidos:
         avisos.append(f"{removidos} item(ns) repetido(s) no lote foram removidos.")
