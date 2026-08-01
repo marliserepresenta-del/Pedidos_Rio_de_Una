@@ -6,6 +6,8 @@ Como o relatório não informa o preço unitário, o aplicativo calcula a coluna
 
 A aba **Visão geral** reúne indicadores de valor e quantidade, análises por produto, loja, ano e mês/ano, filtros de período e demais campos do pedido, tabela detalhada e download do resultado filtrado em CSV. O período começa automaticamente na menor data de emissão disponível e termina na maior.
 
+Todos os usuários ativos acessam as mesmas informações e os mesmos filtros. O resultado filtrado pode ser baixado em CSV ou em um relatório PDF paginado.
+
 ## Executar localmente
 
 ```bash

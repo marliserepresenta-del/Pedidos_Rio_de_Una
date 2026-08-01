@@ -8,6 +8,8 @@ import pandas as pd
 import streamlit as st
 from supabase import Client
 
+from src.relatorio_pdf import gerar_relatorio_pdf
+
 
 COLUNAS_NUMERICAS = ("embalagem", "quantidade", "valor_item")
 
@@ -218,9 +220,28 @@ def exibir_dashboard(cliente: Client) -> None:
             "quantidade": st.column_config.NumberColumn("Quantidade", format="%.2f"),
         },
     )
-    st.download_button(
+    filtros_pdf = {
+        "Código": codigo_busca.strip(),
+        "Pedido": pedido.strip(),
+        "Produto": ", ".join(produtos_escolhidos),
+        "Loja": ", ".join(locais),
+        "Fornecedor": ", ".join(fornecedores),
+        "Comprador": ", ".join(compradores),
+    }
+    pdf = gerar_relatorio_pdf(filtrada, inicio, fim, filtros_pdf)
+    baixar_csv, baixar_pdf = st.columns([1, 1], gap="medium")
+    baixar_csv.download_button(
         "Baixar dados filtrados em CSV",
         tabela.to_csv(index=False).encode("utf-8-sig"),
         "pedidos_filtrados.csv",
         "text/csv",
+        use_container_width=True,
+    )
+    baixar_pdf.download_button(
+        "Baixar relatório em PDF",
+        pdf,
+        f"relatorio_pedidos_{inicio:%Y-%m-%d}_a_{fim:%Y-%m-%d}.pdf",
+        "application/pdf",
+        type="primary",
+        use_container_width=True,
     )
