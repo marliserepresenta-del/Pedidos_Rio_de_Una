@@ -2,8 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
+# Evita falhas nativas do alocador Mimalloc do PyArrow observadas no macOS.
+# Precisa ser definido antes de importar Pandas e Streamlit.
+os.environ.setdefault("ARROW_DEFAULT_MEMORY_POOL", "system")
 
 import pandas as pd
 import streamlit as st

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from math import ceil
 
 import pandas as pd
 import streamlit as st
@@ -54,6 +55,27 @@ def _aplicar_multiselect(df: pd.DataFrame, coluna: str, escolhas: list[str]) -> 
     if escolhas:
         return df[df[coluna].astype(str).isin(escolhas)]
     return df
+
+
+def _pagina_dataframe(df: pd.DataFrame, chave: str, tamanho: int = 200) -> pd.DataFrame:
+    """Exibe controles e devolve somente a página enviada ao PyArrow/Streamlit."""
+    total = len(df)
+    paginas = max(1, ceil(total / tamanho))
+    informacao, navegacao = st.columns([5, 1], vertical_alignment="bottom")
+    informacao.caption(f"{total:,} registro(s) · {tamanho} por página".replace(",", "."))
+    chave_pagina = f"pagina_{chave}"
+    if int(st.session_state.get(chave_pagina, 1)) > paginas:
+        st.session_state[chave_pagina] = paginas
+    pagina = int(navegacao.number_input(
+        "Página",
+        min_value=1,
+        max_value=paginas,
+        value=1,
+        step=1,
+        key=chave_pagina,
+    ))
+    inicio = (pagina - 1) * tamanho
+    return df.iloc[inicio:inicio + tamanho].copy()
 
 
 def exibir_dashboard(cliente: Client) -> None:
@@ -197,10 +219,11 @@ def exibir_dashboard(cliente: Client) -> None:
         .sort_values(["produto", "emissao", "codigo_produto"], kind="stable")
         .copy()
     )
-    resumo_produtos["emissao"] = resumo_produtos["emissao"].dt.strftime("%d/%m/%Y")
-    resumo_produtos["valor_unitario"] = _coluna_moeda(resumo_produtos["valor_unitario"])
+    resumo_exibicao = _pagina_dataframe(resumo_produtos, "resumo_produtos")
+    resumo_exibicao["emissao"] = resumo_exibicao["emissao"].dt.strftime("%d/%m/%Y")
+    resumo_exibicao["valor_unitario"] = _coluna_moeda(resumo_exibicao["valor_unitario"])
     st.dataframe(
-        resumo_produtos,
+        resumo_exibicao,
         width="stretch",
         hide_index=True,
         column_config={
@@ -215,7 +238,7 @@ def exibir_dashboard(cliente: Client) -> None:
     st.markdown("#### Todos os pedidos filtrados")
     tabela = filtrada.drop(columns=["shipment_id", "created_at"], errors="ignore").copy()
     tabela["emissao"] = tabela["emissao"].dt.strftime("%d/%m/%Y")
-    tabela_exibicao = tabela.copy()
+    tabela_exibicao = _pagina_dataframe(tabela, "todos_pedidos")
     tabela_exibicao["valor_item"] = _coluna_moeda(tabela_exibicao["valor_item"])
     tabela_exibicao["valor_unitario"] = _coluna_moeda(tabela_exibicao["valor_unitario"])
     st.dataframe(
@@ -237,8 +260,14 @@ def exibir_dashboard(cliente: Client) -> None:
         "Fornecedor": ", ".join(fornecedores),
         "Comprador": ", ".join(compradores),
     }
-    pdf = gerar_relatorio_pdf(filtrada, inicio, fim, filtros_pdf)
-    baixar_csv, baixar_pdf = st.columns([1, 1], gap="medium")
+    assinatura_pdf = (
+        str(inicio), str(fim), codigo_busca.strip(), pedido.strip(),
+        tuple(produtos_escolhidos), tuple(locais), tuple(fornecedores),
+        tuple(compradores), len(filtrada), float(filtrada["valor_item"].sum()),
+    )
+    if st.session_state.get("assinatura_pdf_dashboard") != assinatura_pdf:
+        st.session_state.pop("pdf_dashboard", None)
+    baixar_csv, preparar_pdf = st.columns([1, 1], gap="medium")
     baixar_csv.download_button(
         "Baixar dados filtrados em CSV",
         tabela.to_csv(index=False).encode("utf-8-sig"),
@@ -246,11 +275,18 @@ def exibir_dashboard(cliente: Client) -> None:
         "text/csv",
         width="stretch",
     )
-    baixar_pdf.download_button(
-        "Baixar relatório em PDF",
-        pdf,
-        f"relatorio_pedidos_{inicio:%Y-%m-%d}_a_{fim:%Y-%m-%d}.pdf",
-        "application/pdf",
-        type="primary",
-        width="stretch",
-    )
+    if preparar_pdf.button("Preparar relatório em PDF", type="primary", width="stretch"):
+        with st.spinner("Preparando o PDF com todos os pedidos filtrados..."):
+            st.session_state["pdf_dashboard"] = gerar_relatorio_pdf(
+                filtrada, inicio, fim, filtros_pdf
+            )
+            st.session_state["assinatura_pdf_dashboard"] = assinatura_pdf
+    if pdf := st.session_state.get("pdf_dashboard"):
+        st.download_button(
+            "Baixar relatório em PDF",
+            pdf,
+            f"relatorio_pedidos_{inicio:%Y-%m-%d}_a_{fim:%Y-%m-%d}.pdf",
+            "application/pdf",
+            type="primary",
+            width="stretch",
+        )
