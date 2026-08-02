@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 from math import ceil
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 from supabase import Client
@@ -22,6 +23,49 @@ def _moeda(valor: float) -> str:
 def _coluna_moeda(serie: pd.Series) -> pd.Series:
     """Formata valores monetários no padrão brasileiro para exibição."""
     return serie.map(lambda valor: _moeda(float(valor)))
+
+
+def _grafico_barras(
+    dados: pd.DataFrame,
+    categoria: str,
+    valor: str,
+    cor: str,
+    *,
+    horizontal: bool,
+    altura: int,
+) -> None:
+    """Gráfico com rótulos monetários visíveis e tooltip em reais."""
+    grafico = dados[[categoria, valor]].copy()
+    grafico["Rótulo"] = _coluna_moeda(grafico[valor])
+    tooltip = [
+        alt.Tooltip(f"{categoria}:N", title=categoria),
+        alt.Tooltip("Rótulo:N", title="Valor"),
+    ]
+    if horizontal:
+        barras = alt.Chart(grafico).mark_bar(cornerRadiusEnd=4).encode(
+            y=alt.Y(f"{categoria}:N", sort="-x", title=None),
+            x=alt.X(f"{valor}:Q", title="Valor (R$)"),
+            color=alt.value(cor),
+            tooltip=tooltip,
+        )
+        rotulos = barras.mark_text(
+            align="right", baseline="middle", dx=-6, color="white",
+            fontSize=11, fontWeight="bold",
+        ).encode(text=alt.Text("Rótulo:N"))
+    else:
+        ordem = grafico[categoria].astype(str).tolist()
+        barras = alt.Chart(grafico).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+            x=alt.X(f"{categoria}:N", sort=ordem, title=None, axis=alt.Axis(labelAngle=-35)),
+            y=alt.Y(f"{valor}:Q", title="Valor (R$)"),
+            color=alt.value(cor),
+            tooltip=tooltip,
+        )
+        angulo = -90 if len(grafico) > 8 else 0
+        rotulos = barras.mark_text(
+            align="left" if angulo else "center", baseline="middle",
+            dy=-8, angle=angulo, color="#263238", fontSize=10,
+        ).encode(text=alt.Text("Rótulo:N"))
+    st.altair_chart((barras + rotulos).properties(height=altura), width="stretch")
 
 
 def _carregar_itens(cliente: Client) -> pd.DataFrame:
@@ -191,10 +235,10 @@ def exibir_dashboard(cliente: Client) -> None:
         st.markdown("#### Top 10 valores por produto")
         top_produtos = produtos.head(10).copy()
         top_produtos["Produto"] = top_produtos["codigo_produto"].astype(str) + " · " + top_produtos["produto"].astype(str)
-        st.bar_chart(top_produtos.set_index("Produto")["valor"], color="#1FAA70", height=430)
+        _grafico_barras(top_produtos, "Produto", "valor", "#1FAA70", horizontal=True, altura=430)
     with grafico_loja:
         st.markdown("#### Valores por loja")
-        st.bar_chart(lojas.set_index("local")["valor"], color="#FF5A52", height=430)
+        _grafico_barras(lojas, "local", "valor", "#FF5A52", horizontal=True, altura=430)
 
     st.write("")
     anual_col, mensal_col = st.columns(2, gap="large")
@@ -209,10 +253,10 @@ def exibir_dashboard(cliente: Client) -> None:
     )
     with anual_col:
         st.markdown("#### Valores por ano")
-        st.bar_chart(anual.set_index("ano")["valor_item"], color="#FFB21C", height=380)
+        _grafico_barras(anual, "ano", "valor_item", "#FFB21C", horizontal=False, altura=380)
     with mensal_col:
         st.markdown("#### Valores por mês/ano")
-        st.bar_chart(mensal.set_index("mês/ano")["valor_item"], color="#1E88E5", height=380)
+        _grafico_barras(mensal, "mês/ano", "valor_item", "#1E88E5", horizontal=False, altura=380)
 
     st.write("")
     st.divider()
