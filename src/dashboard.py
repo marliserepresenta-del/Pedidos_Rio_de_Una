@@ -65,7 +65,11 @@ def _grafico_barras(
             align="left" if angulo else "center", baseline="middle",
             dy=-8, angle=angulo, color="#263238", fontSize=10,
         ).encode(text=alt.Text("Rótulo:N"))
-    st.altair_chart((barras + rotulos).properties(height=altura), width="stretch")
+    # Streamlit 1.49 ainda usa use_container_width especificamente no Altair.
+    st.altair_chart(
+        (barras + rotulos).properties(height=altura),
+        use_container_width=True,
+    )
 
 
 def _carregar_itens(cliente: Client) -> pd.DataFrame:
