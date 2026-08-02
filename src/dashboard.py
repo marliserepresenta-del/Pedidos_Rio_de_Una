@@ -35,12 +35,17 @@ def _grafico_barras(
     altura: int,
 ) -> None:
     """Gráfico com rótulos monetários visíveis e tooltip em reais."""
-    grafico = dados[[categoria, valor]].copy()
+    colunas_grafico = [categoria, valor]
+    if "quantidade" in dados.columns:
+        colunas_grafico.append("quantidade")
+    grafico = dados[colunas_grafico].copy()
     grafico["Rótulo"] = _coluna_moeda(grafico[valor])
     tooltip = [
         alt.Tooltip(f"{categoria}:N", title=categoria),
         alt.Tooltip("Rótulo:N", title="Valor"),
     ]
+    if "quantidade" in grafico.columns:
+        tooltip.append(alt.Tooltip("quantidade:Q", title="Quantidade", format=",.0f"))
     if horizontal:
         valor_maximo = float(grafico[valor].max()) if not grafico.empty else 0.0
         dominio = [0, valor_maximo * 1.22 if valor_maximo else 1]
@@ -255,9 +260,13 @@ def exibir_dashboard(cliente: Client) -> None:
     temporal["ano"] = temporal["emissao"].dt.year.astype(str)
     temporal["mes_ordem"] = temporal["emissao"].dt.to_period("M")
     temporal["mês/ano"] = temporal["emissao"].dt.strftime("%m/%Y")
-    anual = temporal.groupby("ano", as_index=False)["valor_item"].sum()
+    anual = (
+        temporal.groupby("ano", as_index=False)
+        .agg(quantidade=("quantidade", "sum"), valor_item=("valor_item", "sum"))
+    )
     mensal = (
-        temporal.groupby(["mes_ordem", "mês/ano"], as_index=False)["valor_item"].sum()
+        temporal.groupby(["mes_ordem", "mês/ano"], as_index=False)
+        .agg(quantidade=("quantidade", "sum"), valor_item=("valor_item", "sum"))
         .sort_values("mes_ordem")
     )
     with anual_col:
