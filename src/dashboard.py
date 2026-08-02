@@ -245,7 +245,9 @@ def exibir_dashboard(cliente: Client) -> None:
         _grafico_barras(top_produtos, "Produto", "valor", "#1FAA70", horizontal=True, altura=430)
     with grafico_loja:
         st.markdown("#### Valores por loja")
-        _grafico_barras(lojas, "local", "valor", "#FF5A52", horizontal=True, altura=430)
+        st.caption(f"Todas as {len(lojas)} lojas · role para ver a lista completa")
+        with st.container(height=500, border=False):
+            _grafico_barras(lojas, "local", "valor", "#FF5A52", horizontal=True, altura=430)
 
     st.write("")
     anual_col, mensal_col = st.columns(2, gap="large")
