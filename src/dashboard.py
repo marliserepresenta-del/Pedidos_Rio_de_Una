@@ -65,7 +65,10 @@ def _pagina_dataframe(df: pd.DataFrame, chave: str, tamanho: int = 200) -> pd.Da
     informacao.caption(f"{total:,} registro(s) · {tamanho} por página".replace(",", "."))
     chave_pagina = f"pagina_{chave}"
     if int(st.session_state.get(chave_pagina, 1)) > paginas:
-        st.session_state[chave_pagina] = paginas
+        # Ao reduzir os resultados por filtro, recria o controle na página 1.
+        # Não atribuímos um valor ao widget antes de criá-lo, evitando o aviso
+        # "default value ... also had its value set via Session State API".
+        st.session_state.pop(chave_pagina, None)
     pagina = int(navegacao.number_input(
         "Página",
         min_value=1,
