@@ -239,8 +239,8 @@ def exibir_dashboard(cliente: Client) -> None:
     )
     grafico_produto, grafico_loja = st.columns(2, gap="large")
     with grafico_produto:
-        st.markdown("#### Top 10 valores por produto")
-        top_produtos = produtos.head(10).copy()
+        st.markdown("#### Top 25 valores por produto")
+        top_produtos = produtos.head(25).copy()
         top_produtos["Produto"] = top_produtos["codigo_produto"].astype(str) + " · " + top_produtos["produto"].astype(str)
         _grafico_barras(top_produtos, "Produto", "valor", "#1FAA70", horizontal=True, altura=430)
     with grafico_loja:

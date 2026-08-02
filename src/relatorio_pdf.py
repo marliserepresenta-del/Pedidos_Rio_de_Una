@@ -133,9 +133,9 @@ def gerar_relatorio_pdf(
         dados.groupby(["codigo_produto", "produto"], dropna=False, as_index=False)
         .agg(quantidade=("quantidade", "sum"), valor=("valor_item", "sum"))
         .sort_values("valor", ascending=False)
-        .head(10)
+        .head(25)
     )
-    elementos.append(Paragraph("Top 10 valores por produto", secao))
+    elementos.append(Paragraph("Top 25 valores por produto", secao))
     linhas_produtos: list[list[object]] = [["Código", "Produto", "Quantidade", "Valor total"]]
     for item in produtos.itertuples(index=False):
         linhas_produtos.append([
