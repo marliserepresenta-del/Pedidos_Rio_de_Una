@@ -270,6 +270,10 @@ def exibir_dashboard(cliente: Client) -> None:
     st.markdown("#### Resumo completo por produto")
     resumo_produtos = (
         filtrada[["codigo_produto", "produto", "emissao", "valor_unitario"]]
+        .drop_duplicates(
+            subset=["codigo_produto", "produto", "emissao", "valor_unitario"],
+            keep="first",
+        )
         .sort_values(["produto", "emissao", "codigo_produto"], kind="stable")
         .copy()
     )
