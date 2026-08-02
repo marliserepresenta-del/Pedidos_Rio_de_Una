@@ -42,16 +42,19 @@ def _grafico_barras(
         alt.Tooltip("Rótulo:N", title="Valor"),
     ]
     if horizontal:
+        valor_maximo = float(grafico[valor].max()) if not grafico.empty else 0.0
+        dominio = [0, valor_maximo * 1.22 if valor_maximo else 1]
         barras = alt.Chart(grafico).mark_bar(cornerRadiusEnd=4).encode(
             y=alt.Y(f"{categoria}:N", sort="-x", title=None),
-            x=alt.X(f"{valor}:Q", title="Valor (R$)"),
+            x=alt.X(f"{valor}:Q", title="Valor (R$)", scale=alt.Scale(domain=dominio)),
             color=alt.value(cor),
             tooltip=tooltip,
         )
         rotulos = barras.mark_text(
-            align="right", baseline="middle", dx=-6, color="white",
+            align="left", baseline="middle", dx=7, color="#111827",
             fontSize=11, fontWeight="bold",
         ).encode(text=alt.Text("Rótulo:N"))
+        altura = max(altura, len(grafico) * 30)
     else:
         ordem = grafico[categoria].astype(str).tolist()
         barras = alt.Chart(grafico).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
