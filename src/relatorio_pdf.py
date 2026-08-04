@@ -15,7 +15,6 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     Image,
-    PageBreak,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -71,7 +70,7 @@ def gerar_relatorio_pdf(
     fim: date,
     filtros: dict[str, str],
 ) -> bytes:
-    """Retorna um PDF completo, pronto para o botão de download."""
+    """Retorna o PDF resumido do painel, pronto para o botão de download."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -165,7 +164,76 @@ def gerar_relatorio_pdf(
         linhas_meses.append([item["mês/ano"], _moeda(float(item["valor_item"]))])
     elementos.append(_tabela(linhas_meses, [120 * mm, 142 * mm]))
 
-    elementos.extend([PageBreak(), Paragraph("Todos os pedidos filtrados", secao)])
+    def rodape(canvas, documento):
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor("#D7DDDF"))
+        canvas.line(12 * mm, 10 * mm, 285 * mm, 10 * mm)
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(colors.HexColor("#607D8B"))
+        canvas.drawString(12 * mm, 6 * mm, "Rio de Una - Pedidos")
+        canvas.drawRightString(285 * mm, 6 * mm, f"Página {documento.page}")
+        canvas.restoreState()
+
+    doc.build(elementos, onFirstPage=rodape, onLaterPages=rodape)
+    return buffer.getvalue()
+
+
+def gerar_pdf_pedidos_detalhados(
+    dados: pd.DataFrame,
+    inicio: date,
+    fim: date,
+    filtros: dict[str, str],
+) -> bytes:
+    """Retorna um PDF separado apenas com os pedidos detalhados."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=12 * mm,
+        leftMargin=12 * mm,
+        topMargin=13 * mm,
+        bottomMargin=14 * mm,
+        title="Rio de Una - Pedidos detalhados",
+        author="Rio de Una",
+    )
+    estilos = getSampleStyleSheet()
+    titulo = ParagraphStyle(
+        "TituloRioUnaDetalhado", parent=estilos["Title"], fontName="Helvetica-Bold",
+        fontSize=20, leading=23, textColor=VERDE_ESCURO, alignment=TA_LEFT,
+        spaceAfter=2 * mm,
+    )
+    secao = ParagraphStyle(
+        "SecaoRioUnaDetalhado", parent=estilos["Heading2"], fontName="Helvetica-Bold",
+        fontSize=12, leading=15, textColor=VERDE_ESCURO, spaceBefore=4 * mm,
+        spaceAfter=2 * mm,
+    )
+    normal = ParagraphStyle(
+        "NormalRioUnaDetalhado", parent=estilos["BodyText"], fontName="Helvetica",
+        fontSize=8.5, leading=11, textColor=colors.HexColor("#263238"),
+    )
+    pequeno = ParagraphStyle(
+        "PequenoRioUnaDetalhado", parent=normal, fontSize=7.2, leading=9,
+    )
+
+    elementos: list[object] = []
+    cabecalho = []
+    if LOGO.exists():
+        cabecalho.append(Image(str(LOGO), width=18 * mm, height=18 * mm))
+    cabecalho.append(Paragraph("Rio de Una - Pedidos detalhados", titulo))
+    topo = Table([cabecalho], colWidths=[22 * mm, 240 * mm] if len(cabecalho) == 2 else [262 * mm])
+    topo.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE")]))
+    elementos.extend([topo, Spacer(1, 3 * mm)])
+    elementos.append(Paragraph(
+        f"Período analisado: <b>{inicio:%d/%m/%Y}</b> até <b>{fim:%d/%m/%Y}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
+        f"Gerado em {datetime.now():%d/%m/%Y %H:%M}", normal,
+    ))
+    filtros_ativos = [f"<b>{escape(nome)}:</b> {escape(valor)}" for nome, valor in filtros.items() if valor]
+    elementos.append(Paragraph(
+        "Filtros: " + (" &nbsp;|&nbsp; ".join(filtros_ativos) if filtros_ativos else "nenhum filtro adicional"),
+        normal,
+    ))
+    elementos.extend([Spacer(1, 4 * mm), Paragraph("Todos os pedidos filtrados", secao)])
+
     linhas = [["Data", "Loja", "Pedido", "Código", "Produto", "Qtd.", "Valor unit.", "Valor item"]]
     ordenados = dados.sort_values(["produto", "emissao", "codigo_produto"], kind="stable")
     for item in ordenados.itertuples(index=False):

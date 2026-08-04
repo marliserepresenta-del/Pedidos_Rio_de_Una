@@ -10,7 +10,8 @@ import pandas as pd
 import streamlit as st
 from supabase import Client
 
-from src.relatorio_pdf import gerar_relatorio_pdf
+from src.relatorio_excel import gerar_excel_pedidos_detalhados
+from src.relatorio_pdf import gerar_pdf_pedidos_detalhados, gerar_relatorio_pdf
 
 
 COLUNAS_NUMERICAS = ("embalagem", "quantidade", "valor_item")
@@ -336,7 +337,9 @@ def exibir_dashboard(cliente: Client) -> None:
     )
     if st.session_state.get("assinatura_pdf_dashboard") != assinatura_pdf:
         st.session_state.pop("pdf_dashboard", None)
-    baixar_csv, preparar_pdf = st.columns([1, 1], gap="medium")
+        st.session_state.pop("pdf_detalhado_dashboard", None)
+        st.session_state.pop("excel_detalhado_dashboard", None)
+    baixar_csv, preparar_pdf, preparar_pdf_detalhado, preparar_excel = st.columns(4, gap="medium")
     baixar_csv.download_button(
         "Baixar dados filtrados em CSV",
         tabela.to_csv(index=False).encode("utf-8-sig"),
@@ -344,18 +347,46 @@ def exibir_dashboard(cliente: Client) -> None:
         "text/csv",
         width="stretch",
     )
-    if preparar_pdf.button("Preparar relatório em PDF", type="primary", width="stretch"):
-        with st.spinner("Preparando o PDF com todos os pedidos filtrados..."):
+    if preparar_pdf.button("Preparar PDF resumo", type="primary", width="stretch"):
+        with st.spinner("Preparando o PDF resumido..."):
             st.session_state["pdf_dashboard"] = gerar_relatorio_pdf(
                 filtrada, inicio, fim, filtros_pdf
             )
             st.session_state["assinatura_pdf_dashboard"] = assinatura_pdf
+    if preparar_pdf_detalhado.button("Preparar PDF detalhado", width="stretch"):
+        with st.spinner("Preparando o PDF detalhado..."):
+            st.session_state["pdf_detalhado_dashboard"] = gerar_pdf_pedidos_detalhados(
+                filtrada, inicio, fim, filtros_pdf
+            )
+            st.session_state["assinatura_pdf_dashboard"] = assinatura_pdf
+    if preparar_excel.button("Preparar Excel detalhado", width="stretch"):
+        with st.spinner("Preparando o Excel detalhado..."):
+            st.session_state["excel_detalhado_dashboard"] = gerar_excel_pedidos_detalhados(filtrada)
+            st.session_state["assinatura_pdf_dashboard"] = assinatura_pdf
+
+    downloads = st.columns(3, gap="medium")
     if pdf := st.session_state.get("pdf_dashboard"):
-        st.download_button(
-            "Baixar relatório em PDF",
+        downloads[0].download_button(
+            "Baixar PDF resumo",
             pdf,
             f"relatorio_pedidos_{inicio:%Y-%m-%d}_a_{fim:%Y-%m-%d}.pdf",
             "application/pdf",
             type="primary",
+            width="stretch",
+        )
+    if pdf_detalhado := st.session_state.get("pdf_detalhado_dashboard"):
+        downloads[1].download_button(
+            "Baixar PDF pedidos detalhados",
+            pdf_detalhado,
+            f"pedidos_detalhados_{inicio:%Y-%m-%d}_a_{fim:%Y-%m-%d}.pdf",
+            "application/pdf",
+            width="stretch",
+        )
+    if excel_detalhado := st.session_state.get("excel_detalhado_dashboard"):
+        downloads[2].download_button(
+            "Baixar Excel detalhado",
+            excel_detalhado,
+            f"pedidos_detalhados_{inicio:%Y-%m-%d}_a_{fim:%Y-%m-%d}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             width="stretch",
         )
